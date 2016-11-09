@@ -95,3 +95,13 @@ func DemoDirectionRequest(fromAddress, toAddress string) *Direction {
 func DemoStaticMapFromPolyLine(polyline Polyline) string {
 	return "https://maps.googleapis.com/maps/api/staticmap?size=400x400&path=weight:3%7Ccolor:blue%7Cenc:" + polyline.Points + "&key=AIzaSyD55li1OuTm-bRAzfO4Mo3AsdNKHywfp1s"
 }
+
+func GetHtmlInstructions(direction *Direction) []string {
+	instructions := make([]string, 0)
+	for _,leg := range direction.Routes[0].Legs {
+		for _,step := range leg.Steps {
+			instructions = append(instructions, step.Html_instructions)
+		}
+	}
+	return instructions
+}

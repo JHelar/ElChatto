@@ -18,7 +18,12 @@ func getMap(w http.ResponseWriter, r *http.Request){
 	fmt.Printf("Dir: (%+v)", directions)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	fmt.Fprint(w, "<img src='" + googlemaps.DemoStaticMapFromPolyLine(directions.Routes[0].Overview_polyline) + "' />")
+	html := "<img src='" + googlemaps.DemoStaticMapFromPolyLine(directions.Routes[0].Overview_polyline) + "' /><ol>"
+	for _,instruction := range googlemaps.GetHtmlInstructions(directions){
+		html += "<li>" + instruction + "</li>"
+	}
+	html += "</ol>"
+	fmt.Fprint(w, html)
 }
 
 func main() {
