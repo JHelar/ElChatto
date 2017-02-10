@@ -4,12 +4,14 @@ import (
 	"net/http"
 	"encoding/json"
 	"log"
+	"math/rand"
+	"time"
 )
 
-const STATIC_MAP_API_KEY = "AIzaSyD55li1OuTm-bRAzfO4Mo3AsdNKHywfp1s"
-const DIRECTION_API_KEY = "AIzaSyBp9yzE23JEZdVBUjgReVfUellKeZg54S4"
+const MAP_API_KEY = "AIzaSyD55li1OuTm-bRAzfO4Mo3AsdNKHywfp1s"
 const STATIC_MAP_URL = "https://maps.googleapis.com/maps/api/staticmap?"
 const DIRECTION_URL = "https://maps.googleapis.com/maps/api/directions/json?"
+var Colors = []string{"blue", "red", "green", "black", "brown", "purple", "yallow", "gray", "orange", "white"}
 
 type Geocoded_waypoint struct {
 	status string `json:"geocoder_status"`
@@ -76,8 +78,12 @@ type Polyline struct {
 	Points string `json:"points"`
 }
 
-func DemoDirectionRequest(fromAddress, toAddress string) *Direction {
-	resp, err := http.Get("https://maps.googleapis.com/maps/api/directions/json?origin="+ fromAddress +"&destination="+ toAddress +"&key=AIzaSyD55li1OuTm-bRAzfO4Mo3AsdNKHywfp1s")
+func init(){
+	rand.Seed(time.Now().Unix())
+}
+
+func GetDirectionRequest(fromAddress, toAddress string) *Direction {
+	resp, err := http.Get(DIRECTION_URL + "origin="+ fromAddress +"&destination="+ toAddress +"&key=" + MAP_API_KEY)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -92,9 +98,11 @@ func DemoDirectionRequest(fromAddress, toAddress string) *Direction {
 
 }
 
-func DemoStaticMapFromPolyLine(polyline Polyline) string {
-	return "https://maps.googleapis.com/maps/api/staticmap?size=400x400&path=weight:3%7Ccolor:blue%7Cenc:" + polyline.Points + "&key=AIzaSyD55li1OuTm-bRAzfO4Mo3AsdNKHywfp1s"
+func GetStaticMapFromPolyLine(polyline Polyline) string {
+	color := Colors[rand.Intn(len(Colors))]
+	return STATIC_MAP_URL + "size=400x400&path=weight:3%7Ccolor:" + color + "%7Cenc:" + polyline.Points + "&key=" + MAP_API_KEY
 }
+
 
 func GetHtmlInstructions(direction *Direction) []string {
 	instructions := make([]string, 0)

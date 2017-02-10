@@ -1,97 +1,125 @@
 package bot
 
 import (
+	"bot/bottypes"
 	"net/http"
-	"fmt"
 	"encoding/json"
 	"time"
+	"log"
+	"fmt"
+	"bytes"
 )
 
 const BOT_TOKEN = "293073695:AAGMj6GL_q2vx1kYQMgUkYsv35TQ8WFYfSo"
 const API_URL = "https://api.telegram.org/bot"
 
-type Bot struct {
-	Result chan Result
-	Results chan []Result
-	Quit chan bool
-}
 
-type Response struct {
-	Ok bool `json:"ok"`
-	Results []Result `json:"result"`
-}
-
-type Result struct {
-	Update_id int `json:"update_id"`
-	Message Message `json:"message"`
-}
-
-type Message struct {
-	Message_id int `json:"message_id"`
-	From User `json:"from"`
-	Chat Chat `json:"chat"`
-	Date int `json:"date"`
-	Text string `json:"text"`
-	Entities Entity `json:"entities,omitempty"`
-}
-
-type User struct {
-	Id int `json:"id"`
-	First_name string `json:"first_name"`
-	Last_name string `json:"last_name"`
-}
-
-type Chat struct {
-	Id int `json:"id"`
-	First_name string `json:"first_name"`
-	Last_name string `json:"last_name"`
-	Type string `json:"type"`
-}
-
-type Entity struct {
-	Type string `json:"type"`
-	Offset int `json:"offset"`
-	Length int `json:"length"`
-}
-
-func getUpdates() (Response, bool) {
+func getUpdates() (bottypes.Response, bool) {
 	resp, err := http.Get(fmt.Sprintf("%s%s/getUpdates", API_URL, BOT_TOKEN))
 	defer resp.Body.Close()
 
 	if err != nil {
-		return Response{}, false
+		log.Print(err)
+		return bottypes.Response{}, false
 	}
 
-	var response Response
+	var response bottypes.Response
 	decoder := json.NewDecoder(resp.Body);
 
 	err = decoder.Decode(&response)
+
 	if err != nil {
-		return Response{}, false
+		log.Print(err)
+		return bottypes.Response{}, false
 	}
 	return response, true
 }
 
-func NewBot() *Bot {
-	return &Bot{ Result: make(chan Result), Results: make(chan []Result), Quit: make(chan bool)}
+func SendMessage(message *bottypes.Message){
+	data := bottypes.DataPacket{Chat_id: message.Chat.Id, Text: message.Text, Reply_to_message_id: message.Message_id, Parse_mode: "HTML"}
+
+	jsonresp, err := json.MarshalIndent(data, "", "")
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	if err != nil {
+		log.Print(err)
+		return
+	}else{
+		req, err := http.NewRequest("POST", fmt.Sprintf("%s%s/sendMessage", API_URL, BOT_TOKEN), bytes.NewBuffer(jsonresp))
+
+		req.Header.Set("Content-Type", "application/json")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		defer resp.Body.Close()
+
+		if err != nil {
+			log.Print(err)
+			return
+		}
+	}
 }
 
-func StartListen(bot *Bot) {
-	go func(bot *Bot){
-		for {
-			select{
-			case <- bot.Quit:
-				return
-			default:
-				res, ok := getUpdates()
+func SendPhoto(message *bottypes.Message, imgstring string){
+	data := struct {
+		Chat_id int `json:"chat_id"`
+		Photo string  `json:"photo"`
+	}{Chat_id:message.Chat.Id, Photo:imgstring}
+	jsonresp, err := json.MarshalIndent(data, "", "")
+	if err != nil {
+		log.Print(err)
+		return
+	}else{
+		req, err := http.NewRequest("POST", fmt.Sprintf("%s%s/sendPhoto", API_URL, BOT_TOKEN), bytes.NewBuffer(jsonresp))
 
-				if ok {
-					fmt.Print("Ok")
+		req.Header.Set("Content-Type", "application/json")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		defer resp.Body.Close()
+
+		if err != nil {
+			log.Print(err)
+			return
+		}
+	}
+}
+
+func NewBot() *bottypes.Bot {
+	return &bottypes.Bot{ Result: make(chan bottypes.Result), Lastupdate_id:0}
+}
+
+func Listen(bot *bottypes.Bot) {
+	go func(bot *bottypes.Bot){
+		for {
+			res, ok := getUpdates()
+
+			if ok && len(res.Results) > 0{
+				result := res.Results[len(res.Results) - 1]
+				if(result.Update_id != bot.Lastupdate_id){
+					bot.Lastupdate_id = result.Update_id
 					bot.Result <- res.Results[len(res.Results)-1]
-					bot.Results <- res.Results
 				}
+
 			}
 			time.Sleep(1 * time.Second)
+		}
+	}(bot)
+}
+
+func Read(bot *bottypes.Bot, resultHandler func(*bottypes.Message, bool)){
+	go func(bot *bottypes.Bot) {
+		for {
+			select {
+			case res := <- bot.Result:
+				log.Printf("Bot Read: %+v", res.Message.Text)
+				resultHandler(&res.Message, len(res.Message.Entities) > 0)
+
+			default:
+				//log.Print("ElChatto no new message.")
+			}
 		}
 	}(bot)
 }

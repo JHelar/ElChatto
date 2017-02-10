@@ -1,0 +1,17 @@
+<html>
+<head>
+    <meta name="description" content="Index page for ElChatto">
+    <meta name="author" content="John Larsson">
+    <meta charset="UTF-8">
+
+    <title>ElChatto</title>
+</head>
+<body>
+<img src='{{.Image}}' />
+<ol>
+{{range .Descriptions}}
+    <li>{{.}}</li>
+{{end}}
+</ol>
+</body>
+</html>

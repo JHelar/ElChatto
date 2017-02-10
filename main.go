@@ -1,12 +1,19 @@
 package main
 
 import (
-	"fmt"
 	"googlemaps"
 	"net/http"
+	"html/template"
+	"log"
+	"ElChatto"
 )
 
-func getMap(w http.ResponseWriter, r *http.Request){
+func getIndex(w http.ResponseWriter, r *http.Request){
+	tpl, err := template.ParseFiles("./templates/index.gohtml")
+	if err != nil {
+		log.Panic(err)
+	}
+
 	from := r.URL.Query().Get("from")
 	to := r.URL.Query().Get("to")
 
@@ -14,20 +21,26 @@ func getMap(w http.ResponseWriter, r *http.Request){
 		from = "Örebro"
 		to = "Stockholm"
 	}
-	directions := googlemaps.DemoDirectionRequest(from, to)
-	fmt.Printf("Dir: (%+v)", directions)
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	html := "<img src='" + googlemaps.DemoStaticMapFromPolyLine(directions.Routes[0].Overview_polyline) + "' /><ol>"
-	for _,instruction := range googlemaps.GetHtmlInstructions(directions){
-		html += "<li>" + instruction + "</li>"
+	directions := googlemaps.GetDirectionRequest(from, to)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	data := struct {
+		Image string
+		Descriptions []string
+	}{
+		Image: googlemaps.GetStaticMapFromPolyLine(directions.Routes[0].Overview_polyline),
+		Descriptions: googlemaps.GetHtmlInstructions(directions),
 	}
-	html += "</ol>"
-	fmt.Fprint(w, html)
+
+	tpl.Execute(w, data)
 }
 
 func main() {
 
-	http.HandleFunc("/", getMap);
+	log.Print("Starting ElChatto!")
+	ElChatto.Start()
+
+
+	http.HandleFunc("/", getIndex);
 	http.ListenAndServe("localhost:8080", nil)
 }
